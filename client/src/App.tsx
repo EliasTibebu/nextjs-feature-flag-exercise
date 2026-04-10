@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { FeatureFlag, CreateFlagInput, UpdateFlagInput } from '@shared/types'
+import type { FeatureFlag, CreateFlagInput, UpdateFlagInput, FlagFilters } from '@shared/types'
 import { getFlags, createFlag, updateFlag, deleteFlag } from '@/api/flags'
 import { FlagsTable } from '@/components/flags-table'
+import { FlagsFilterBar } from '@/components/flags-filter-bar'
 import { FlagFormModal } from '@/components/flag-form-modal'
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -15,10 +16,11 @@ function FlagsApp() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
   const [selectedFlag, setSelectedFlag] = useState<FeatureFlag | null>(null)
+  const [filters, setFilters] = useState<FlagFilters>({})
 
   const { data: flags = [], isLoading, error } = useQuery({
-    queryKey: ['flags'],
-    queryFn: getFlags,
+    queryKey: ['flags', filters],
+    queryFn: () => getFlags(filters),
   })
 
   const createMutation = useMutation({
@@ -89,6 +91,10 @@ function FlagsApp() {
     }
   }
 
+  const handleClearFilters = () => {
+    setFilters({})
+  }
+
   if (error) {
     const errorMessage = error instanceof Error ? error.message : 'Failed to load flags'
     return (
@@ -112,6 +118,8 @@ function FlagsApp() {
           </Button>
         </div>
 
+        <FlagsFilterBar filters={filters} onChange={setFilters} onClear={handleClearFilters} />
+
         {isLoading ? (
           <div className="text-center py-12 text-muted-foreground">Loading flags...</div>
         ) : (
@@ -119,6 +127,7 @@ function FlagsApp() {
         )}
 
         <FlagFormModal
+          key={selectedFlag?.id ?? 'new'}
           open={isFormOpen}
           onOpenChange={setIsFormOpen}
           flag={selectedFlag}

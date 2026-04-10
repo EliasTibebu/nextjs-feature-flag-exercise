@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import type { FeatureFlag, CreateFlagInput, Environment, FlagType } from '@shared/types'
 import {
   Dialog,
@@ -70,13 +70,6 @@ export function FlagFormModal({
 
   const [formData, setFormData] = useState<CreateFlagInput>(initialData)
   const [tagsInput, setTagsInput] = useState(initialTags)
-
-  useEffect(() => {
-    if (open) {
-      setFormData(initialData)
-      setTagsInput(initialTags)
-    }
-  }, [open, initialData, initialTags])
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {

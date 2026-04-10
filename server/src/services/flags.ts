@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
 import { getDb, saveDb } from '../db/client.js'
 import { NotFoundError, ConflictError } from '../middleware/error.js'
-import type { FeatureFlag, CreateFlagInput, UpdateFlagInput, Environment, FlagType } from '../../../shared/types.js'
+import type { FeatureFlag, CreateFlagInput, UpdateFlagInput, FlagFilters, Environment, FlagType } from '../../../shared/types.js'
 
 const VALID_ENVIRONMENTS: Environment[] = ['development', 'staging', 'production']
 const VALID_FLAG_TYPES: FlagType[] = ['release', 'experiment', 'operational', 'permission']
@@ -83,10 +83,51 @@ function resultToRows(result: { columns: string[], values: unknown[][] }[]): DbR
   })
 }
 
-export async function getAllFlags(): Promise<FeatureFlag[]> {
+export async function getAllFlags(filters?: FlagFilters): Promise<FeatureFlag[]> {
   const db = await getDb()
-  const result = db.exec('SELECT * FROM flags ORDER BY created_at DESC')
-  return resultToRows(result).map(rowToFlag)
+
+  const conditions: string[] = []
+  const params: (string | number)[] = []
+
+  if (filters?.environment !== undefined) {
+    conditions.push('environment = ?')
+    params.push(filters.environment)
+  }
+  if (filters?.type !== undefined) {
+    conditions.push('type = ?')
+    params.push(filters.type)
+  }
+  if (filters?.enabled !== undefined) {
+    conditions.push('enabled = ?')
+    params.push(filters.enabled ? 1 : 0)
+  }
+  if (filters?.owner !== undefined) {
+    conditions.push('owner = ?')
+    params.push(filters.owner)
+  }
+  if (filters?.search !== undefined) {
+    conditions.push('name LIKE ?')
+    params.push(`%${filters.search}%`)
+  }
+
+  if (conditions.length === 0) {
+    const result = db.exec('SELECT * FROM flags ORDER BY created_at DESC')
+    return resultToRows(result).map(rowToFlag)
+  }
+
+  const sql = `SELECT * FROM flags WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`
+  const stmt = db.prepare(sql)
+
+  try {
+    stmt.bind(params)
+    const rows: DbRow[] = []
+    while (stmt.step()) {
+      rows.push(stmt.getAsObject() as unknown as DbRow)
+    }
+    return rows.map(rowToFlag)
+  } finally {
+    stmt.free()
+  }
 }
 
 export async function getFlagById(id: string): Promise<FeatureFlag | null> {
