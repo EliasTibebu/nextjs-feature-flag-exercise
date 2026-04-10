@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { FeatureFlag, Environment, FlagType } from '@shared/types'
 import {
   Table,
@@ -9,7 +10,10 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+
+type SortDirection = 'asc' | 'desc'
+type SortColumn = 'name' | 'enabled' | 'environment' | 'type' | 'rolloutPercentage' | 'owner'
 
 interface FlagsTableProps {
   flags: FeatureFlag[]
@@ -30,7 +34,35 @@ const typeColors: Record<FlagType, string> = {
   permission: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300',
 }
 
+function SortIcon({ column, sortColumn, sortDirection }: { column: SortColumn; sortColumn: SortColumn | null; sortDirection: SortDirection }) {
+  if (sortColumn !== column) return <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+  if (sortDirection === 'asc') return <ArrowUp className="h-3 w-3" />
+  return <ArrowDown className="h-3 w-3" />
+}
+
 export function FlagsTable({ flags, onEdit, onDelete }: FlagsTableProps) {
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+
+  function handleSort(column: SortColumn) {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedFlags = sortColumn === null ? flags : [...flags].sort((a, b) => {
+    const aVal = a[sortColumn]
+    const bVal = b[sortColumn]
+    const cmp =
+      typeof aVal === 'boolean'
+        ? Number(aVal) - Number(bVal)
+        : String(aVal).localeCompare(String(bVal))
+    return sortDirection === 'asc' ? cmp : -cmp
+  })
+
   if (flags.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -44,18 +76,30 @@ export function FlagsTable({ flags, onEdit, onDelete }: FlagsTableProps) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Environment</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Rollout</TableHead>
-            <TableHead>Owner</TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => handleSort('name')}>
+              <span className="flex items-center gap-1">Name <SortIcon column="name" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+            </TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => handleSort('enabled')}>
+              <span className="flex items-center gap-1">Status <SortIcon column="enabled" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+            </TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => handleSort('environment')}>
+              <span className="flex items-center gap-1">Environment <SortIcon column="environment" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+            </TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => handleSort('type')}>
+              <span className="flex items-center gap-1">Type <SortIcon column="type" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+            </TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => handleSort('rolloutPercentage')}>
+              <span className="flex items-center gap-1">Rollout <SortIcon column="rolloutPercentage" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+            </TableHead>
+            <TableHead className="cursor-pointer select-none" onClick={() => handleSort('owner')}>
+              <span className="flex items-center gap-1">Owner <SortIcon column="owner" sortColumn={sortColumn} sortDirection={sortDirection} /></span>
+            </TableHead>
             <TableHead>Tags</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {flags.map((flag) => (
+          {sortedFlags.map((flag) => (
             <TableRow key={flag.id}>
               <TableCell className="font-medium">{flag.name}</TableCell>
               <TableCell>

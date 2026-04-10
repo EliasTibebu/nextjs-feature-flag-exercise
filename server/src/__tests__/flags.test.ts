@@ -53,6 +53,65 @@ describe('Flag Service', () => {
     })
   })
 
+  describe('getAllFlags with filters', () => {
+    it('filters by environment', async () => {
+      await createFlag({ ...validFlagInput, name: 'dev-flag', environment: 'development' })
+      await createFlag({ ...validFlagInput, name: 'prod-flag', environment: 'production' })
+
+      const flags = await getAllFlags({ environment: 'production' })
+      expect(flags).toHaveLength(1)
+      expect(flags[0].name).toBe('prod-flag')
+    })
+
+    it('filters by type', async () => {
+      await createFlag({ ...validFlagInput, name: 'release-flag', type: 'release' })
+      await createFlag({ ...validFlagInput, name: 'experiment-flag', type: 'experiment' })
+
+      const flags = await getAllFlags({ type: 'experiment' })
+      expect(flags).toHaveLength(1)
+      expect(flags[0].name).toBe('experiment-flag')
+    })
+
+    it('filters by enabled', async () => {
+      await createFlag({ ...validFlagInput, name: 'enabled-flag', enabled: true })
+      await createFlag({ ...validFlagInput, name: 'disabled-flag', enabled: false })
+
+      const enabled = await getAllFlags({ enabled: true })
+      expect(enabled).toHaveLength(1)
+      expect(enabled[0].name).toBe('enabled-flag')
+
+      const disabled = await getAllFlags({ enabled: false })
+      expect(disabled).toHaveLength(1)
+      expect(disabled[0].name).toBe('disabled-flag')
+    })
+
+    it('filters by search (name substring)', async () => {
+      await createFlag({ ...validFlagInput, name: 'auth-login' })
+      await createFlag({ ...validFlagInput, name: 'payment-flow' })
+
+      const flags = await getAllFlags({ search: 'auth' })
+      expect(flags).toHaveLength(1)
+      expect(flags[0].name).toBe('auth-login')
+    })
+
+    it('combines multiple filters', async () => {
+      await createFlag({ ...validFlagInput, name: 'prod-enabled', environment: 'production', enabled: true })
+      await createFlag({ ...validFlagInput, name: 'prod-disabled', environment: 'production', enabled: false })
+      await createFlag({ ...validFlagInput, name: 'dev-enabled', environment: 'development', enabled: true })
+
+      const flags = await getAllFlags({ environment: 'production', enabled: true })
+      expect(flags).toHaveLength(1)
+      expect(flags[0].name).toBe('prod-enabled')
+    })
+
+    it('returns empty array when no flags match', async () => {
+      await createFlag({ ...validFlagInput, name: 'dev-flag', environment: 'development' })
+
+      const flags = await getAllFlags({ environment: 'staging' })
+      expect(flags).toEqual([])
+    })
+  })
+
   describe('createFlag', () => {
     it('creates a flag with correct data', async () => {
       const flag = await createFlag({
